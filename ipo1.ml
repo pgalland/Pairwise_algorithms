@@ -139,38 +139,55 @@ let horizontal_growth domains testsuite i =
     
     in
 
+    let testNb = ref 0 in
+
     let rec horizontal_growth_aux testsuite = 
         match testsuite with
         | [] -> []
         | test::rest -> 
-          begin
+	  begin
+	  if !testNb < domains.(i) then begin
+	    test.(i) <- Assigned !testNb;
+	    (*Set as covered the pairs now covered with testNb *)
+	    for k=0 to (i-1) do
+	      match test.(k) with
+		| Anything | Untouched -> raise No_anything_or_untouched_here
+		| Assigned vk -> Hashtbl.remove uncoveredPairs (k,i,vk,!testNb)
+	    done;
+            testNb := !testNb + 1;
+	    test::(horizontal_growth_aux rest)
+	  end
+	  else 
+            begin
 
-	    (*Find the best value for parameter i for the test, the one
-	    which covers the most uncovered pairs*)
-	    let valuesOfi = init_list ~f:(fun k -> k) ~length:(domains.(i)) in
-            
-	    let bestvi,_ = List.fold_left 
-	      (fun (maxvi,maxCovered) valueFori -> 
+		(*Find the best value for parameter i for the test, the one
+		  which covers the most uncovered pairs*)
+	      let valuesOfi = init_list ~f:(fun k -> k) ~length:(domains.(i)) in
+	      
+	      let bestvi,_ = List.fold_left 
+		(fun (maxvi,maxCovered) valueFori -> 
 		  let pairsCovered = number_of_covering_pairs test valueFori in
 		  if pairsCovered > maxCovered then 
 		    (valueFori,pairsCovered)
 		  else
 		    (maxvi, maxCovered))
-	      (-1,-1) valuesOfi 
-	    in
-	    
-	    test.(i) <- Assigned bestvi ;
-	    
-	    (*Set as covered the pairs now covered with bestvi *)
+		(-1,-1) valuesOfi 
+	      in
+	      
+	      test.(i) <- Assigned bestvi ;
+	      
+		(*Set as covered the pairs now covered with bestvi *)
 
-	    for k=0 to (i-1) do
-	      match test.(k) with
-		| Anything | Untouched -> raise No_anything_or_untouched_here
-		| Assigned vk -> Hashtbl.remove uncoveredPairs (k,i,vk,bestvi)
-	    done;
-	    
-	    test::(horizontal_growth_aux rest)
+	      for k=0 to (i-1) do
+		match test.(k) with
+		  | Anything | Untouched -> raise No_anything_or_untouched_here
+		  | Assigned vk -> Hashtbl.remove uncoveredPairs (k,i,vk,bestvi)
+	      done;
+	      
+	      test::(horizontal_growth_aux rest)
+	    end
 	  end
+
     in
             	  
     (horizontal_growth_aux testsuite), uncoveredPairs
@@ -241,7 +258,7 @@ let ipo domains =
   
 
 let () =
-    let domains = [|3;3;3|] in
+    let domains = [|3;3;3;3|] in
     let testsuite = ipo domains in
     print_string (string_of_bool (check_ipo domains testsuite));
     print_string "\n";
